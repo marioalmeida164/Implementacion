@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:gallery_saver/gallery_saver.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_picker_gallery_camera/image_picker_gallery_camera.dart';
+import 'package:video_player/video_player.dart';
 
 class CamaraView extends StatefulWidget {
   @override
@@ -12,9 +13,13 @@ class CamaraView extends StatefulWidget {
 
 class _CamaraViewState extends State<CamaraView> {
   File _image;
+  File _imageFile;
+  File _videoFile;
+  File _videoFileCamera;
   double textSize = 20;
-  String firstButtonText = 'Take photo';
-  String secondButtonText = 'Record video';
+  String firstButtonText = 'Tomar Foto';
+  String secondButtonText = 'Grabar video';
+  VideoPlayerController _controller;
 
   Future getImage(ImgSource source) async {
     var image = await ImagePickerGC.pickImage(
@@ -28,6 +33,16 @@ class _CamaraViewState extends State<CamaraView> {
     setState(() {
       _image = image;
     });
+  }
+
+  void _pickVideo() async {
+    var video = await ImagePicker().getVideo(source: ImageSource.gallery);
+    _videoFile = File(video.path);
+    _controller = VideoPlayerController.file(_videoFile)
+      ..initialize().then((_) {
+        setState(() {});
+        _controller.play();
+      });
   }
 
   @override
@@ -46,20 +61,36 @@ class _CamaraViewState extends State<CamaraView> {
                     onPressed: () {
                       getImage(ImgSource.Gallery);
                     },
-                    child: Text('Abrir Galeria'),
+                    child: Text('Escoger una foto'),
                     color: Colors.black26,
                   ),
                 ),
                 Align(
                   child: MaterialButton(
-                    onPressed: _takePhoto,
+                    onPressed: (_pickVideo),
+                    child: Text('Escoger un Video'),
+                    color: Colors.orange,
+                  ),
+                ),
+                if (_videoFile != null)
+                  _controller.value.initialized
+                      ? AspectRatio(
+                          aspectRatio: _controller.value.aspectRatio,
+                          child: VideoPlayer(_controller),
+                        )
+                      : Container()
+                else
+                  Text("Escoge un Video"),
+                Align(
+                  child: MaterialButton(
+                    onPressed: (_takePhoto),
                     child: Text(firstButtonText),
                     color: Colors.blue,
                   ),
                 ),
                 Align(
                   child: MaterialButton(
-                    onPressed: _recordVideo,
+                    onPressed: (_recordVideo),
                     child: Text(secondButtonText),
                     color: Colors.green,
                   ),
@@ -78,38 +109,22 @@ class _CamaraViewState extends State<CamaraView> {
   }
 
   void _takePhoto() async {
-    ImagePicker.pickImage(source: ImageSource.camera)
-        .then((File recordedImage) {
-      if (recordedImage != null && recordedImage.path != null) {
-        setState(() {
-          firstButtonText = 'saving in progress...';
-        });
-        GallerySaver.saveImage(recordedImage.path).then((bool success) {
-          setState(() {
-            firstButtonText = 'image saved!';
-          });
-        });
-      }
+    var picture = await ImagePicker().getImage(source: ImageSource.camera);
+    if (picture != null && picture.path != null) {
+      GallerySaver.saveImage(picture.path);
+    }
+    setState(() {
+      _imageFile = File(picture.path);
     });
   }
 
   void _recordVideo() async {
-    try {
-      ImagePicker.pickVideo(source: ImageSource.camera)
-          .then((File recordedVideo) {
-        if (recordedVideo != null && recordedVideo.path != null) {
-          setState(() {
-            secondButtonText = 'saving in progress...';
-          });
-          GallerySaver.saveVideo(recordedVideo.path).then((bool success) {
-            setState(() {
-              secondButtonText = 'video saved!';
-            });
-          });
-        }
-      });
-    } catch (e) {
-      print(e);
+    var video = await ImagePicker().getVideo(source: ImageSource.camera);
+    if (video != null && video.path != null) {
+      GallerySaver.saveVideo(video.path);
     }
+    setState(() {
+      _videoFileCamera = File(video.path);
+    });
   }
 }
